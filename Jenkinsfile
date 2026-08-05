@@ -5,7 +5,7 @@ pipeline {
         stage('1. Verification Code Source') {
             steps {
                 echo "Code source vérifié dans le workspace."
-                sh 'ls -la'
+                sh 'ls -la juice-shop'
             }
         }
 
@@ -15,8 +15,8 @@ pipeline {
                 sh '''
                     docker run --rm \
                       -v devops-infra-jenkins_jenkins-data:/var/jenkins_home \
-                      -w "/var/jenkins_home/workspace/${JOB_NAME}/juice-shop" \
-                      semgrep/semgrep semgrep scan --config auto
+                      -w /var/jenkins_home/workspace/${JOB_NAME}/juice-shop \
+                      semgrep/semgrep semgrep scan --config auto .
                 '''
             }
         }
