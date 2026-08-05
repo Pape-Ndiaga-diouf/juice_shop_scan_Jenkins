@@ -2,30 +2,26 @@ pipeline {
     agent any
 
     environment {
-        // Remplacez par l'URL de VOTRE dépôt GitHub
-        REPO_URL = 'https://github.com/Pape-Ndiaga-diouf/juice_shop_scan_Jenkins.git'
-        BRANCH_NAME = 'main'
+        // ID des identifiants créés dans Jenkins
+        CREDENTIALS_ID = '41bb071f-4637-45aa-863d-d6e5f9e57f48'
     }
 
     stages {
-        stage('1. Checkout Code Source') {
+        stage('1. Verification Code Source') {
             steps {
-                echo "Récupération du code source depuis GitHub..."
-                // Nettoie l'espace de travail puis clone votre dépôt
-                deleteDir()
-                git branch: "${BRANCH_NAME}", url: "${REPO_URL}"
+                echo "Code source déjà récupéré depuis GitHub via la configuration SCM."
+                sh 'ls -la'
             }
         }
 
         stage('2. SAST Scan - Semgrep') {
             steps {
                 echo "Lancement du scan de sécurité SAST..."
-                // On utilise le volume nommé du conteneur Jenkins
-                // /var/jenkins_home/workspace/NOM_DU_JOB correspond au dossier $(pwd)
+                // Utilisation du volume nommé de Jenkins pour scanner l'espace de travail
                 sh '''
                     docker run --rm \
                       -v devops-infra-jenkins_jenkins-data:/var/jenkins_home \
-                      -w /var/jenkins_home/workspace/${JOB_NAME} \
+                      -w /var/jenkins_home/workspace/"${JOB_NAME}" \
                       semgrep/semgrep semgrep scan --config auto
                 '''
             }
