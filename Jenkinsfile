@@ -1,6 +1,11 @@
 pipeline {
     agent any
 
+    environment {
+        // Remplacez par votre adresse email de destination
+        DEST_EMAIL = 'votre-email@gmail.com'
+    }
+
     stages {
         stage('1. Verification Code Source') {
             steps {
@@ -24,13 +29,24 @@ pipeline {
 
     post {
         always {
-            echo "Fin du pipeline."
-        }
-        success {
-            echo "Analyse SAST terminée avec succès !"
-        }
-        failure {
-            echo "Le pipeline a échoué."
+            echo "Envoi du rapport par email..."
+            mail to: "${DEST_EMAIL}",
+                 subject: "Rapport de Build Jenkins - Job: ${JOB_NAME} #${BUILD_NUMBER} [${currentBuild.currentResult}]",
+                 body: """
+Bonjour,
+
+Le build #${BUILD_NUMBER} de la tâche '${JOB_NAME}' est terminé.
+
+Statut du build : ${currentBuild.currentResult}
+URL du build : ${BUILD_URL}
+
+--- Début de la sortie console du scan ---
+${BUILD_LOGS}
+--- Fin de la sortie console ---
+
+Cordialement,
+Jenkins CI/CD
+"""
         }
     }
 }
