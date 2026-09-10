@@ -30,7 +30,7 @@ pipeline {
                 dir('juice-shop') {
                     dependencyCheck(
                         odcInstallation: 'DP-check',
-                        // nvdCredentialsId: 'nvd-api-key',   // décommenter une fois la clé NVD ajoutée dans Jenkins Credentials
+                        nvdCredentialsId: 'E9153CE4-A531-44C9-9102-CCFCD09FE4F5',   // décommenter une fois la clé NVD ajoutée dans Jenkins Credentials
                         additionalArguments: """
                             --project "${JOB_NAME}"
                             --scan .
