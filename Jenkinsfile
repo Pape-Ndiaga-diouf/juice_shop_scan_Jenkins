@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        DEST_EMAIL = 'TON_EMAIL_ICI'
+        DEST_EMAIL = 'ndiagadiouff@gmail.com'
         SCA_REPORT_DIR = 'dependency-check-report'
         SAST_REPORT = 'semgrep-report.json'
     }
@@ -78,7 +78,7 @@ pipeline {
                         odcInstallation: 'DP-check',
 
                         // Remplace par l'ID réel de ta credential NVD
-                        nvdCredentialsId: 'E9153CE4-A531-44C9-9102-CCFCD09FE4F5',
+                        nvdCredentialsId: 'a0abdf2e-a0b3-46fb-a329-64e1051372ff',
 
                         additionalArguments: """
                             --project "${JOB_NAME}"
