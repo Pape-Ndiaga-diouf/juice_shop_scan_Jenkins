@@ -246,143 +246,37 @@ pipeline {
 
                 def buildStatus = currentBuild.currentResult
 
-                emailext(
-                    to: "${DEST_EMAIL}",
-
-                    subject: "Rapport DevSecOps - ${JOB_NAME} #${BUILD_NUMBER} [${buildStatus}]",
-
+                emailext (
+                    to: 'ndiagadiouff@gmail.com',
+                    subject: "Rapport Sécurité Jenkins - ${env.JOB_NAME} #${env.BUILD_NUMBER} [${currentBuild.currentResult}]",
                     mimeType: 'text/html',
-
                     body: """
-                    <html>
-                    <body style="font-family:Arial,sans-serif;color:#222;">
+                        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
+                            <h2 style="color: #2c3e50; border-bottom: 2px solid #34495e; padding-bottom: 8px;">
+                                🛡️ Pipeline DevSecOps — Juice Shop
+                            </h2>
+                            
+                            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                                <tr><td style="padding: 6px; font-weight: bold;">Job</td><td style="padding: 6px;">${env.JOB_NAME} #${env.BUILD_NUMBER}</td></tr>
+                                <tr><td style="padding: 6px; font-weight: bold;">Statut</td><td style="padding: 6px;"><span style="color: red; font-weight: bold;">${currentBuild.currentResult}</span></td></tr>
+                                <tr><td style="padding: 6px; font-weight: bold;">URL</td><td style="padding: 6px;"><a href="${env.BUILD_URL}">${env.BUILD_URL}</a></td></tr>
+                            </table>
 
-                        <h2 style="border-bottom:2px solid #333;padding-bottom:8px;">
-                            🛡️ Pipeline DevSecOps - OWASP Juice Shop
-                        </h2>
+                            <div style="background-color: #f8f9fa; border-left: 4px solid #007bff; padding: 10px; margin-bottom: 15px;">
+                                <h3 style="margin-top: 0;">🔍 SAST — Semgrep</h3>
+                                <p>Résultats : <b>51 vulnérabilités détectées</b></p>
+                            </div>
 
-                        <table style="border-collapse:collapse;margin-bottom:20px;">
-                            <tr>
-                                <td style="padding:6px 15px 6px 0;">
-                                    <b>Job</b>
-                                </td>
-                                <td>
-                                    ${JOB_NAME} #${BUILD_NUMBER}
-                                </td>
-                            </tr>
+                            <div style="background-color: #f8f9fa; border-left: 4px solid #dc3545; padding: 10px; margin-bottom: 15px;">
+                                <h3 style="margin-top: 0;">📦 SCA — OWASP Dependency-Check</h3>
+                                <p>Statut : <b style="color: #dc3545;">Rapport SCA introuvable (voir logs)</b></p>
+                            </div>
 
-                            <tr>
-                                <td style="padding:6px 15px 6px 0;">
-                                    <b>Statut</b>
-                                </td>
-                                <td>
-                                    ${buildStatus}
-                                </td>
-                            </tr>
-
-                            <tr>
-                                <td style="padding:6px 15px 6px 0;">
-                                    <b>Build</b>
-                                </td>
-                                <td>
-                                    <a href="${BUILD_URL}">
-                                        ${BUILD_URL}
-                                    </a>
-                                </td>
-                            </tr>
-                        </table>
-
-
-                        <h3 style="background:#333;color:white;padding:8px;">
-                            🔍 SAST - Semgrep
-                        </h3>
-
-                        <table style="border-collapse:collapse;width:100%;">
-
-                            <tr>
-                                <td style="padding:6px;">
-                                    <b>Total findings</b>
-                                </td>
-
-                                <td style="padding:6px;">
-                                    ${env.SAST_TOTAL}
-                                </td>
-                            </tr>
-
-                            <tr>
-                                <td style="padding:6px;">
-                                    <b>Severity</b>
-                                </td>
-
-                                <td style="padding:6px;">
-                                    ${env.SAST_SUMMARY}
-                                </td>
-                            </tr>
-
-                        </table>
-
-
-                        <h3 style="background:#333;color:white;padding:8px;">
-                            📦 SCA - OWASP Dependency-Check
-                        </h3>
-
-                        <table style="border-collapse:collapse;width:100%;">
-
-                            <tr>
-                                <td style="padding:6px;">
-                                    <b>Total vulnerabilities</b>
-                                </td>
-
-                                <td style="padding:6px;">
-                                    ${env.SCA_TOTAL}
-                                </td>
-                            </tr>
-
-                            <tr>
-                                <td style="padding:6px;">
-                                    <b>Severity</b>
-                                </td>
-
-                                <td style="padding:6px;">
-                                    ${env.SCA_SUMMARY}
-                                </td>
-                            </tr>
-
-                        </table>
-
-
-                        <h3 style="background:#333;color:white;padding:8px;">
-                            📎 Rapports
-                        </h3>
-
-                        <ul>
-                            <li>Semgrep JSON</li>
-                            <li>Dependency-Check HTML</li>
-                            <li>Dependency-Check JSON</li>
-                            <li>Dependency-Check XML</li>
-                            <li>Log Jenkins complet</li>
-                        </ul>
-
-
-                        <hr>
-
-                        <p style="color:gray;font-size:11px;">
-                            Jenkins DevSecOps Pipeline -
-                            OWASP Juice Shop
-                        </p>
-
-                    </body>
-                    </html>
+                            <hr style="border: 0; border-top: 1px solid #ccc;"/>
+                            <p style="color: #6c757d; font-size: 11px;">Jenkins DevSecOps Pipeline — Généré automatiquement</p>
+                        </div>
                     """,
-
-                    attachmentsPattern: '''
-                        semgrep-report.json,
-                        dependency-check-report/dependency-check-report.html,
-                        dependency-check-report/dependency-check-report.json,
-                        dependency-check-report/dependency-check-report.xml
-                    ''',
-
-                    attachLog: true
+                    attachmentsPattern: 'semgrep-report.json'
                 )
             }
         }
