@@ -134,7 +134,7 @@ pipeline {
 
                 dependencyCheck(
                     odcInstallation: 'DP-check',
-                    nvdCredentialsId: 'a0abdf2e-a0b3-46fb-a329-64e1051372f',
+                    nvdCredentialsId: 'db36c753-d0bb-4a46-8293-7f6ed9e0773e',
                     additionalArguments: """
                         --project "${JOB_NAME}"
                         --scan "${WORKSPACE}/juice-shop"
