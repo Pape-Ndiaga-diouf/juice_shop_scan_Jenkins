@@ -3,7 +3,7 @@ pipeline {
     agent any
 
     environment {
-        DEST_EMAIL = 'TON_EMAIL_ICI@gmail.com'
+        DEST_EMAIL = 'ndiagadiouff@gmail.com'
         SCA_REPORT_DIR = 'dependency-check-report'
     }
 
