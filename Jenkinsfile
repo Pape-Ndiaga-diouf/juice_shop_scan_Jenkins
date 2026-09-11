@@ -13,47 +13,31 @@ pipeline {
 
         stage('1. Verification Code Source') {
             steps {
-                echo "=== Verification du code source Juice Shop ==="
-
                 sh '''
-                    set -e
+                    echo "=== Verification du code source ==="
 
-                    echo "=== Contenu du workspace ==="
-                    ls -la
+                    test -f "${JUICE_SHOP_DIR}/package.json" || {
+                        echo "ERREUR : package.json introuvable"
+                        exit 1
+                    }
 
-                    echo ""
-                    echo "=== Verification du repertoire Juice Shop ==="
+                    test -f "${JUICE_SHOP_DIR}/package-lock.json" || {
+                        echo "ERREUR : package-lock.json introuvable"
+                        exit 1
+                    }
 
-                    test -d "${JUICE_SHOP_DIR}"
-                    echo "juice-shop : PRESENT"
-
-                    test -f "${JUICE_SHOP_DIR}/package.json"
-                    echo "package.json : PRESENT"
-
-                    test -f "${JUICE_SHOP_DIR}/package-lock.json"
-                    echo "package-lock.json : PRESENT"
-
-                    echo ""
-                    echo "=== Verification terminee ==="
+                    echo "Code source OK"
                 '''
             }
         }
 
-
         stage('2. SAST Scan - Semgrep') {
             steps {
-                echo "=== Lancement du scan SAST Semgrep ==="
-
                 sh '''
-                    set -e
-
-                    echo "=== Nettoyage ancien rapport ==="
+                    echo "=== Scan SAST avec Semgrep ==="
 
                     rm -f "${WORKSPACE}/${SAST_REPORT}"
                     rm -f "${JUICE_SHOP_DIR}/${SAST_REPORT}"
-
-                    echo ""
-                    echo "=== Lancement de Semgrep ==="
 
                     docker run --rm \
                         -v devops-infra-jenkins_jenkins-data:/var/jenkins_home \
@@ -65,70 +49,52 @@ pipeline {
                         --output "/var/jenkins_home/workspace/${JOB_NAME}/juice-shop/${SAST_REPORT}" \
                         .
 
-                    echo ""
-                    echo "=== Verification du rapport Semgrep ==="
+                    test -f "${JUICE_SHOP_DIR}/${SAST_REPORT}" || {
+                        echo "ERREUR : rapport Semgrep introuvable"
+                        exit 1
+                    }
 
-                    test -f "${JUICE_SHOP_DIR}/${SAST_REPORT}"
+                    cp "${JUICE_SHOP_DIR}/${SAST_REPORT}" "${WORKSPACE}/${SAST_REPORT}"
 
-                    cp "${JUICE_SHOP_DIR}/${SAST_REPORT}" \
-                       "${WORKSPACE}/${SAST_REPORT}"
-
-                    echo "Rapport Semgrep : PRESENT"
-
+                    echo "Rapport Semgrep genere :"
                     ls -lh "${WORKSPACE}/${SAST_REPORT}"
 
-                    echo ""
-                    echo "=== Nombre de findings Semgrep ==="
-
-                    jq '.results | length' \
-                       "${WORKSPACE}/${SAST_REPORT}"
+                    echo "Nombre de findings :"
+                    jq '.results | length' "${WORKSPACE}/${SAST_REPORT}"
                 '''
             }
         }
-
 
         stage('3. Verification des dependances NPM') {
             steps {
-                echo "=== Verification des dependances NPM ==="
-
                 sh '''
-                    set -e
+                    echo "=== Installation de node_modules ==="
 
-                    echo "=== package.json ==="
-
-                    test -f "${JUICE_SHOP_DIR}/package.json"
-                    echo "package.json : PRESENT"
-
-                    echo ""
-                    echo "=== package-lock.json ==="
-
-                    test -f "${JUICE_SHOP_DIR}/package-lock.json"
-                    echo "package-lock.json : PRESENT"
+                    docker run --rm \
+                        -v devops-infra-jenkins_jenkins-data:/var/jenkins_home \
+                        -w "/var/jenkins_home/workspace/${JOB_NAME}/juice-shop" \
+                        node:24-bookworm \
+                        npm install --ignore-scripts --package-lock=true
 
                     echo ""
-                    echo "=== Informations package-lock.json ==="
+                    echo "=== Audit NPM ==="
 
-                    ls -lh "${JUICE_SHOP_DIR}/package-lock.json"
-
-                    echo ""
-                    echo "=== Verification NPM terminee ==="
+                    docker run --rm \
+                        -v devops-infra-jenkins_jenkins-data:/var/jenkins_home \
+                        -w "/var/jenkins_home/workspace/${JOB_NAME}/juice-shop" \
+                        node:24-bookworm \
+                        npm audit || true
                 '''
             }
         }
-
 
         stage('4. SCA - OWASP Dependency-Check') {
             steps {
 
-                echo "=== Lancement du scan SCA Dependency-Check ==="
-
                 sh '''
-                    set -e
-
-                    echo "=== Nettoyage ancien rapport SCA ==="
+                    echo "=== Preparation du rapport Dependency-Check ==="
 
                     rm -rf "${WORKSPACE}/${SCA_REPORT_DIR}"
-
                     mkdir -p "${WORKSPACE}/${SCA_REPORT_DIR}"
                 '''
 
@@ -145,24 +111,15 @@ pipeline {
                 )
 
                 sh '''
-                    set -e
-
-                    echo ""
                     echo "=== Verification des rapports Dependency-Check ==="
 
-                    test -f "${SCA_REPORT_DIR}/dependency-check-report.xml"
-                    echo "XML : PRESENT"
-
-                    test -f "${SCA_REPORT_DIR}/dependency-check-report.html"
-                    echo "HTML : PRESENT"
-
-                    test -f "${SCA_REPORT_DIR}/dependency-check-report.json"
-                    echo "JSON : PRESENT"
+                    test -f "${WORKSPACE}/${SCA_REPORT_DIR}/dependency-check-report.xml"
+                    test -f "${WORKSPACE}/${SCA_REPORT_DIR}/dependency-check-report.html"
+                    test -f "${WORKSPACE}/${SCA_REPORT_DIR}/dependency-check-report.json"
 
                     echo ""
-                    echo "=== Fichiers generes ==="
-
-                    ls -lh "${SCA_REPORT_DIR}"
+                    echo "Rapports generes :"
+                    ls -lh "${WORKSPACE}/${SCA_REPORT_DIR}/"
                 '''
 
                 dependencyCheckPublisher(
@@ -174,61 +131,46 @@ pipeline {
             }
         }
 
-
         stage('5. Analyse des rapports') {
             steps {
-
-                echo "=== Analyse des resultats de securite ==="
-
                 sh '''
-                    set -e
+                    echo "======================================"
+                    echo " ANALYSE DES RAPPORTS DE SECURITE"
+                    echo "======================================"
 
                     echo ""
-                    echo "========================================="
-                    echo "             RESULTATS SAST"
-                    echo "========================================="
+                    echo "=== SEMGREP ==="
 
                     if [ -f "${WORKSPACE}/${SAST_REPORT}" ]; then
 
-                        echo ""
-                        echo "Nombre total de findings :"
-
-                        jq '.results | length' \
-                           "${WORKSPACE}/${SAST_REPORT}"
+                        echo "Total findings :"
+                        jq '.results | length' "${WORKSPACE}/${SAST_REPORT}"
 
                         echo ""
                         echo "Severites :"
 
                         jq -r '
-                            .results[]?.extra?.severity
+                            .results[]?
+                            | .extra?.severity // "UNKNOWN"
                         ' "${WORKSPACE}/${SAST_REPORT}" \
                         | sort \
                         | uniq -c \
                         | sort -nr
 
                     else
-
-                        echo "ERREUR : rapport SAST introuvable"
-                        exit 1
-
+                        echo "Rapport Semgrep introuvable"
                     fi
 
-
                     echo ""
-                    echo "========================================="
-                    echo "             RESULTATS SCA"
-                    echo "========================================="
+                    echo "=== DEPENDENCY-CHECK ==="
 
                     if [ -f "${WORKSPACE}/${SCA_REPORT_DIR}/dependency-check-report.json" ]; then
 
-                        echo ""
-                        echo "Nombre total de vulnerabilites :"
+                        echo "Total vulnerabilites :"
 
                         jq '
-                            [
-                                .dependencies[]?
-                                | .vulnerabilities[]?
-                            ] | length
+                            [.dependencies[]? | .vulnerabilities[]?]
+                            | length
                         ' "${WORKSPACE}/${SCA_REPORT_DIR}/dependency-check-report.json"
 
                         echo ""
@@ -237,206 +179,322 @@ pipeline {
                         jq -r '
                             .dependencies[]?
                             | .vulnerabilities[]?
-                            | .severity
+                            | .severity // "UNKNOWN"
                         ' "${WORKSPACE}/${SCA_REPORT_DIR}/dependency-check-report.json" \
                         | sort \
                         | uniq -c \
                         | sort -nr
 
                     else
-
-                        echo "ERREUR : rapport SCA introuvable"
-                        exit 1
-
+                        echo "Rapport Dependency-Check introuvable"
                     fi
-
-
-                    echo ""
-                    echo "========================================="
-                    echo "             FIN DE L'ANALYSE"
-                    echo "========================================="
                 '''
             }
         }
 
         stage('5bis. Generation des rapports de synthese') {
             steps {
-
-                echo "=== Generation des rapports de synthese ==="
-
                 sh '''
                     set -e
 
+                    echo "======================================"
+                    echo " GENERATION DES RAPPORTS DE SYNTHESE"
+                    echo "======================================"
+
+                    # ============================================================
+                    # RAPPORT DE SYNTHESE SEMGREP
+                    # ============================================================
+
+                    echo ""
                     echo "=== Generation du rapport Semgrep ==="
 
                     cat > "${WORKSPACE}/semgrep-summary.html" <<EOF
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <title>Résumé SAST - Semgrep</title>
-        </head>
-        <body>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Rapport SAST - Semgrep</title>
 
-        <h1>Rapport de synthèse SAST - Semgrep</h1>
+<style>
+body {
+    font-family: Arial, sans-serif;
+    margin: 40px;
+    background: #f5f5f5;
+    color: #222;
+}
 
-        <p><b>Projet :</b> ${JOB_NAME}</p>
-        <p><b>Build :</b> #${BUILD_NUMBER}</p>
+.container {
+    background: white;
+    padding: 30px;
+    border-radius: 8px;
+}
 
-        <hr>
+h1 {
+    color: #333;
+}
 
-        <h2>Résultats</h2>
+h2 {
+    margin-top: 30px;
+}
 
-        <p>
-        <b>Total findings :</b>
-        $(jq '.results | length' "${SAST_REPORT}")
-        </p>
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
 
-        <h2>Sévérités</h2>
+th, td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
 
-        <table border="1" cellpadding="6" cellspacing="0">
-            <tr>
-                <th>Sévérité</th>
-                <th>Nombre</th>
-            </tr>
-        $(jq -r '
-            .results[]?.extra?.severity
-        ' "${SAST_REPORT}" |
-        sort |
-        uniq -c |
-        sort -nr |
-        awk '{
-            printf "<tr><td>%s</td><td>%s</td></tr>\\n", $2, $1
-        }')
-        </table>
+th {
+    background: #eee;
+}
 
-        <h2>Findings</h2>
+.summary {
+    font-size: 18px;
+    margin: 10px 0;
+}
+</style>
 
-        <table border="1" cellpadding="6" cellspacing="0">
-            <tr>
-                <th>Sévérité</th>
-                <th>Règle</th>
-                <th>Fichier</th>
-                <th>Ligne</th>
-                <th>Description</th>
-            </tr>
+</head>
 
-        $(jq -r '
-            .results[]? |
-            "<tr>" +
-            "<td>" + (.extra.severity // "UNKNOWN") + "</td>" +
-            "<td>" + (.check_id // "UNKNOWN") + "</td>" +
-            "<td>" + (.path // "UNKNOWN") + "</td>" +
-            "<td>" + ((.start.line // 0) | tostring) + "</td>" +
-            "<td>" + (.extra.message // "N/A") + "</td>" +
-            "</tr>"
-        ' "${SAST_REPORT}")
+<body>
 
-        </table>
+<div class="container">
 
-        </body>
-        </html>
-        EOF
+<h1>Rapport de securite - SAST Semgrep</h1>
+
+<p><b>Projet :</b> ${JOB_NAME}</p>
+<p><b>Build :</b> #${BUILD_NUMBER}</p>
+
+<h2>Resume</h2>
+
+<div class="summary">
+<b>Total des findings :</b>
+$(jq '.results | length' "${WORKSPACE}/${SAST_REPORT}")
+</div>
+
+<h2>Repartition par severite</h2>
+
+<table>
+<tr>
+    <th>Severite</th>
+    <th>Nombre</th>
+</tr>
+
+$(jq -r '
+    .results[]
+    | .extra?.severity // "UNKNOWN"
+' "${WORKSPACE}/${SAST_REPORT}" \
+| sort \
+| uniq -c \
+| sort -nr \
+| awk '{print "<tr><td>" $2 "</td><td>" $1 "</td></tr>"}')
+
+</table>
+
+<h2>Details des findings</h2>
+
+<table>
+
+<tr>
+    <th>Severite</th>
+    <th>Regle</th>
+    <th>Fichier</th>
+    <th>Ligne</th>
+    <th>Message</th>
+</tr>
+
+$(jq -r '
+    .results[] |
+    "<tr>" +
+    "<td>" + (.extra?.severity // "UNKNOWN") + "</td>" +
+    "<td>" + (.check_id // "UNKNOWN") + "</td>" +
+    "<td>" + (.path // "UNKNOWN") + "</td>" +
+    "<td>" + ((.start?.line // 0) | tostring) + "</td>" +
+    "<td>" + (.extra?.message // "") + "</td>" +
+    "</tr>"
+' "${WORKSPACE}/${SAST_REPORT}")
+
+</table>
+
+</div>
+
+</body>
+</html>
+EOF
 
 
+                    # ============================================================
+                    # RAPPORT DE SYNTHESE DEPENDENCY-CHECK
+                    # ============================================================
+
+                    echo ""
                     echo "=== Generation du rapport Dependency-Check ==="
 
                     cat > "${WORKSPACE}/dependency-check-summary.html" <<EOF
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <title>Résumé SCA - Dependency-Check</title>
-        </head>
-        <body>
+<!DOCTYPE html>
+<html lang="fr">
 
-        <h1>Rapport de synthèse SCA - OWASP Dependency-Check</h1>
+<head>
 
-        <p><b>Projet :</b> ${JOB_NAME}</p>
-        <p><b>Build :</b> #${BUILD_NUMBER}</p>
+<meta charset="UTF-8">
 
-        <hr>
+<title>Rapport SCA - OWASP Dependency-Check</title>
 
-        <h2>Résultats</h2>
+<style>
 
-        <p>
-        <b>Total vulnérabilités :</b>
-        $(jq '[
-            .dependencies[]?
-            | .vulnerabilities[]?
-        ] | length' "${SCA_REPORT_DIR}/dependency-check-report.json")
-        </p>
+body {
+    font-family: Arial, sans-serif;
+    margin: 40px;
+    background: #f5f5f5;
+    color: #222;
+}
 
-        <h2>Sévérités</h2>
+.container {
+    background: white;
+    padding: 30px;
+    border-radius: 8px;
+}
 
-        <table border="1" cellpadding="6" cellspacing="0">
-            <tr>
-                <th>Sévérité</th>
-                <th>Nombre</th>
-            </tr>
-        $(jq -r '
-            .dependencies[]?
-            | .vulnerabilities[]?
-            | .severity // "UNKNOWN"
-        ' "${SCA_REPORT_DIR}/dependency-check-report.json" |
-        sort |
-        uniq -c |
-        sort -nr |
-        awk '{
-            printf "<tr><td>%s</td><td>%s</td></tr>\\n", $2, $1
-        }')
-        </table>
+h1 {
+    color: #333;
+}
 
-        <h2>Vulnérabilités</h2>
+h2 {
+    margin-top: 30px;
+}
 
-        <table border="1" cellpadding="6" cellspacing="0">
-            <tr>
-                <th>Composant</th>
-                <th>Version</th>
-                <th>Sévérité</th>
-                <th>CVE</th>
-            </tr>
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
 
-        $(jq -r '
-            .dependencies[]? |
-            .name as $name |
-            .version as $version |
-            .vulnerabilities[]? |
-            "<tr>" +
-            "<td>" + ($name // "UNKNOWN") + "</td>" +
-            "<td>" + ($version // "UNKNOWN") + "</td>" +
-            "<td>" + (.severity // "UNKNOWN") + "</td>" +
-            "<td>" + (.name // "UNKNOWN") + "</td>" +
-            "</tr>"
-        ' "${SCA_REPORT_DIR}/dependency-check-report.json")
+th, td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
 
-        </table>
+th {
+    background: #eee;
+}
 
-        </body>
-        </html>
-        EOF
+.summary {
+    font-size: 18px;
+    margin: 10px 0;
+}
 
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>Rapport de securite - SCA Dependency-Check</h1>
+
+<p><b>Projet :</b> ${JOB_NAME}</p>
+<p><b>Build :</b> #${BUILD_NUMBER}</p>
+
+<h2>Resume</h2>
+
+<div class="summary">
+
+<b>Total des vulnerabilites :</b>
+
+$(jq '
+    [.dependencies[]? | .vulnerabilities[]?]
+    | length
+' "${WORKSPACE}/${SCA_REPORT_DIR}/dependency-check-report.json")
+
+</div>
+
+<h2>Repartition par severite</h2>
+
+<table>
+
+<tr>
+    <th>Severite</th>
+    <th>Nombre</th>
+</tr>
+
+$(jq -r '
+    .dependencies[]?
+    | .vulnerabilities[]?
+    | .severity // "UNKNOWN"
+' "${WORKSPACE}/${SCA_REPORT_DIR}/dependency-check-report.json" \
+| sort \
+| uniq -c \
+| sort -nr \
+| awk '{print "<tr><td>" $2 "</td><td>" $1 "</td></tr>"}')
+
+</table>
+
+
+<h2>Details des vulnerabilites</h2>
+
+<table>
+
+<tr>
+    <th>Dependance</th>
+    <th>Version</th>
+    <th>Severite</th>
+    <th>Vulnerabilite</th>
+</tr>
+
+$(jq -r '
+    .dependencies[]? as $dep
+    | $dep.vulnerabilities[]?
+    | "<tr>" +
+      "<td>" + ($dep.fileName // $dep.pkgName // $dep.name // "UNKNOWN") + "</td>" +
+      "<td>" + ($dep.version // "UNKNOWN") + "</td>" +
+      "<td>" + (.severity // "UNKNOWN") + "</td>" +
+      "<td>" + (.name // "UNKNOWN") + "</td>" +
+      "</tr>"
+' "${WORKSPACE}/${SCA_REPORT_DIR}/dependency-check-report.json")
+
+</table>
+
+</div>
+
+</body>
+
+</html>
+EOF
+
+
+                    # ============================================================
+                    # VERIFICATION
+                    # ============================================================
 
                     echo ""
-                    echo "=== Verification des rapports de synthese ==="
+                    echo "======================================"
+                    echo " VERIFICATION DES RAPPORTS"
+                    echo "======================================"
 
                     test -f "${WORKSPACE}/semgrep-summary.html"
                     test -f "${WORKSPACE}/dependency-check-summary.html"
 
-                    echo "Semgrep summary : PRESENT"
-                    echo "Dependency-Check summary : PRESENT"
+                    echo ""
+                    echo "Rapport Semgrep :"
+                    ls -lh "${WORKSPACE}/semgrep-summary.html"
 
-                    ls -lh \
-                        "${WORKSPACE}/semgrep-summary.html" \
-                        "${WORKSPACE}/dependency-check-summary.html"
+                    echo ""
+                    echo "Rapport Dependency-Check :"
+                    ls -lh "${WORKSPACE}/dependency-check-summary.html"
+
                 '''
             }
         }
 
         stage('6. Archivage des rapports') {
             steps {
-
-                echo "=== Archivage des rapports ==="
 
                 archiveArtifacts(
                     artifacts: """
@@ -452,14 +510,15 @@ pipeline {
         }
     }
 
-
     post {
 
         always {
 
             script {
 
-                echo "=== Envoi du rapport de securite ==="
+                echo "======================================"
+                echo " ENVOI DU RAPPORT DE SECURITE"
+                echo "======================================"
 
                 def sastTotal = "N/A"
                 def sastSeverity = "N/A"
@@ -468,9 +527,9 @@ pipeline {
                 def scaSeverity = "N/A"
 
 
-                // ==============================
-                // SAST
-                // ==============================
+                // ============================================================
+                // RECUPERATION DES STATISTIQUES SEMGREP
+                // ============================================================
 
                 if (fileExists("${SAST_REPORT}")) {
 
@@ -481,82 +540,105 @@ pipeline {
                         returnStdout: true
                     ).trim()
 
-
                     sastSeverity = sh(
                         script: """
                             jq -r '
-                                .results[]?.extra?.severity
-                            ' '${SAST_REPORT}' |
-                            sort |
-                            uniq -c |
-                            sort -nr |
-                            tr '\\n' ' '
+                                .results[]?
+                                | .extra?.severity // "UNKNOWN"
+                            ' '${SAST_REPORT}' \
+                            | sort \
+                            | uniq -c \
+                            | sort -nr \
+                            | tr '\\n' ' '
                         """,
                         returnStdout: true
                     ).trim()
                 }
 
 
-                // ==============================
-                // SCA
-                // ==============================
+                // ============================================================
+                // RECUPERATION DES STATISTIQUES DEPENDENCY-CHECK
+                // ============================================================
 
-                if (fileExists(
-                    "${SCA_REPORT_DIR}/dependency-check-report.json"
-                )) {
+                if (fileExists("${SCA_REPORT_DIR}/dependency-check-report.json")) {
 
                     scaTotal = sh(
                         script: """
                             jq '
-                                [
-                                    .dependencies[]?
-                                    | .vulnerabilities[]?
-                                ] | length
+                                [.dependencies[]? | .vulnerabilities[]?]
+                                | length
                             ' '${SCA_REPORT_DIR}/dependency-check-report.json'
                         """,
                         returnStdout: true
                     ).trim()
-
 
                     scaSeverity = sh(
                         script: """
                             jq -r '
                                 .dependencies[]?
                                 | .vulnerabilities[]?
-                                | .severity
-                            ' '${SCA_REPORT_DIR}/dependency-check-report.json' |
-                            sort |
-                            uniq -c |
-                            sort -nr |
-                            tr '\\n' ' '
+                                | .severity // "UNKNOWN"
+                            ' '${SCA_REPORT_DIR}/dependency-check-report.json' \
+                            | sort \
+                            | uniq -c \
+                            | sort -nr \
+                            | tr '\\n' ' '
                         """,
                         returnStdout: true
                     ).trim()
                 }
 
 
-                // ==============================
-                // EMAIL
-                // ==============================
+                // ============================================================
+                // VERIFICATION DES PIECES JOINTES
+                // ============================================================
+
+                echo "======================================"
+                echo " VERIFICATION DES PIECES JOINTES"
+                echo "======================================"
+
+                sh '''
+                    echo ""
+                    echo "Workspace :"
+                    pwd
+
+                    echo ""
+                    echo "Fichiers de synthese :"
+                    ls -lh semgrep-summary.html dependency-check-summary.html
+
+                    echo ""
+                    echo "Taille Semgrep :"
+                    du -h semgrep-summary.html
+
+                    echo ""
+                    echo "Taille Dependency-Check :"
+                    du -h dependency-check-summary.html
+                '''
+
+
+                // ============================================================
+                // ENVOI EMAIL
+                // ============================================================
 
                 emailext(
                     to: "${DEST_EMAIL}",
 
-                    subject: "Test Rapport Securite Jenkins - Job: ${JOB_NAME} #${BUILD_NUMBER}",
+                    subject: "Rapport Securite Jenkins - Job: ${JOB_NAME} #${BUILD_NUMBER}",
 
                     mimeType: 'text/html',
 
                     body: """
                         <html>
+
                         <body>
 
                         <h2>Rapport de securite DevSecOps</h2>
 
                         <p>
-                        <b>Projet :</b> ${JOB_NAME}<br>
-                        <b>Build :</b> #${BUILD_NUMBER}<br>
-                        <b>Statut :</b> ${currentBuild.currentResult}<br>
-                        <b>URL :</b> ${BUILD_URL}
+                            <b>Projet :</b> ${JOB_NAME}<br>
+                            <b>Build :</b> #${BUILD_NUMBER}<br>
+                            <b>Statut :</b> ${currentBuild.currentResult}<br>
+                            <b>URL :</b> ${BUILD_URL}
                         </p>
 
                         <hr>
@@ -564,30 +646,38 @@ pipeline {
                         <h3>SAST - Semgrep</h3>
 
                         <p>
-                        <b>Total findings :</b> ${sastTotal}<br>
-                        <b>Severites :</b> ${sastSeverity}
+                            <b>Total findings :</b> ${sastTotal}<br>
+                            <b>Severites :</b> ${sastSeverity}
                         </p>
 
                         <h3>SCA - OWASP Dependency-Check</h3>
 
                         <p>
-                        <b>Total vulnerabilites :</b> ${scaTotal}<br>
-                        <b>Severites :</b> ${scaSeverity}
+                            <b>Total vulnerabilites :</b> ${scaTotal}<br>
+                            <b>Severites :</b> ${scaSeverity}
+                        </p>
+
+                        <hr>
+
+                        <p>
+                            Les rapports detailles sont disponibles dans les
+                            pieces jointes de cet email ainsi que dans les
+                            artefacts du build Jenkins.
                         </p>
 
                         </body>
+
                         </html>
                     """,
+
                     attachLog: false,
 
-                    attachmentsPattern: """
-                        semgrep-summary.html,
-                        dependency-check-summary.html
-                    """
+                    // IMPORTANT :
+                    // Une seule ligne, sans retour a la ligne
+                    // et sans espaces inutiles.
+                    attachmentsPattern: 'semgrep-summary.html,dependency-check-summary.html'
                 )
             }
         }
     }
 }
-
-//brm
