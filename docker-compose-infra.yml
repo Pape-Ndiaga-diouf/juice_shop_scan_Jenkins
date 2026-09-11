@@ -1,0 +1,17 @@
+services:
+  jenkins:
+    build:
+      context: .           # Le point signifie "le dossier actuel"
+      dockerfile: Dockerfile # Pas besoin de chemin, il est juste à côté
+    container_name: jenkins-Container
+    restart: always
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins-data:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    user: root
+
+volumes:
+  jenkins-data:
