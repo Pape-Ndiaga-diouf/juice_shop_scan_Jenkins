@@ -259,6 +259,179 @@ pipeline {
             }
         }
 
+        stage('5bis. Generation des rapports de synthese') {
+            steps {
+
+                echo "=== Generation des rapports de synthese ==="
+
+                sh '''
+                    set -e
+
+                    echo "=== Generation du rapport Semgrep ==="
+
+                    cat > "${WORKSPACE}/semgrep-summary.html" <<EOF
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Résumé SAST - Semgrep</title>
+        </head>
+        <body>
+
+        <h1>Rapport de synthèse SAST - Semgrep</h1>
+
+        <p><b>Projet :</b> ${JOB_NAME}</p>
+        <p><b>Build :</b> #${BUILD_NUMBER}</p>
+
+        <hr>
+
+        <h2>Résultats</h2>
+
+        <p>
+        <b>Total findings :</b>
+        $(jq '.results | length' "${SAST_REPORT}")
+        </p>
+
+        <h2>Sévérités</h2>
+
+        <table border="1" cellpadding="6" cellspacing="0">
+            <tr>
+                <th>Sévérité</th>
+                <th>Nombre</th>
+            </tr>
+        $(jq -r '
+            .results[]?.extra?.severity
+        ' "${SAST_REPORT}" |
+        sort |
+        uniq -c |
+        sort -nr |
+        awk '{
+            printf "<tr><td>%s</td><td>%s</td></tr>\\n", $2, $1
+        }')
+        </table>
+
+        <h2>Findings</h2>
+
+        <table border="1" cellpadding="6" cellspacing="0">
+            <tr>
+                <th>Sévérité</th>
+                <th>Règle</th>
+                <th>Fichier</th>
+                <th>Ligne</th>
+                <th>Description</th>
+            </tr>
+
+        $(jq -r '
+            .results[]? |
+            "<tr>" +
+            "<td>" + (.extra.severity // "UNKNOWN") + "</td>" +
+            "<td>" + (.check_id // "UNKNOWN") + "</td>" +
+            "<td>" + (.path // "UNKNOWN") + "</td>" +
+            "<td>" + ((.start.line // 0) | tostring) + "</td>" +
+            "<td>" + (.extra.message // "N/A") + "</td>" +
+            "</tr>"
+        ' "${SAST_REPORT}")
+
+        </table>
+
+        </body>
+        </html>
+        EOF
+
+
+                    echo "=== Generation du rapport Dependency-Check ==="
+
+                    cat > "${WORKSPACE}/dependency-check-summary.html" <<EOF
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Résumé SCA - Dependency-Check</title>
+        </head>
+        <body>
+
+        <h1>Rapport de synthèse SCA - OWASP Dependency-Check</h1>
+
+        <p><b>Projet :</b> ${JOB_NAME}</p>
+        <p><b>Build :</b> #${BUILD_NUMBER}</p>
+
+        <hr>
+
+        <h2>Résultats</h2>
+
+        <p>
+        <b>Total vulnérabilités :</b>
+        $(jq '[
+            .dependencies[]?
+            | .vulnerabilities[]?
+        ] | length' "${SCA_REPORT_DIR}/dependency-check-report.json")
+        </p>
+
+        <h2>Sévérités</h2>
+
+        <table border="1" cellpadding="6" cellspacing="0">
+            <tr>
+                <th>Sévérité</th>
+                <th>Nombre</th>
+            </tr>
+        $(jq -r '
+            .dependencies[]?
+            | .vulnerabilities[]?
+            | .severity // "UNKNOWN"
+        ' "${SCA_REPORT_DIR}/dependency-check-report.json" |
+        sort |
+        uniq -c |
+        sort -nr |
+        awk '{
+            printf "<tr><td>%s</td><td>%s</td></tr>\\n", $2, $1
+        }')
+        </table>
+
+        <h2>Vulnérabilités</h2>
+
+        <table border="1" cellpadding="6" cellspacing="0">
+            <tr>
+                <th>Composant</th>
+                <th>Version</th>
+                <th>Sévérité</th>
+                <th>CVE</th>
+            </tr>
+
+        $(jq -r '
+            .dependencies[]? |
+            .name as $name |
+            .version as $version |
+            .vulnerabilities[]? |
+            "<tr>" +
+            "<td>" + ($name // "UNKNOWN") + "</td>" +
+            "<td>" + ($version // "UNKNOWN") + "</td>" +
+            "<td>" + (.severity // "UNKNOWN") + "</td>" +
+            "<td>" + (.name // "UNKNOWN") + "</td>" +
+            "</tr>"
+        ' "${SCA_REPORT_DIR}/dependency-check-report.json")
+
+        </table>
+
+        </body>
+        </html>
+        EOF
+
+
+                    echo ""
+                    echo "=== Verification des rapports de synthese ==="
+
+                    test -f "${WORKSPACE}/semgrep-summary.html"
+                    test -f "${WORKSPACE}/dependency-check-summary.html"
+
+                    echo "Semgrep summary : PRESENT"
+                    echo "Dependency-Check summary : PRESENT"
+
+                    ls -lh \
+                        "${WORKSPACE}/semgrep-summary.html" \
+                        "${WORKSPACE}/dependency-check-summary.html"
+                '''
+            }
+        }
 
         stage('6. Archivage des rapports') {
             steps {
@@ -268,6 +441,8 @@ pipeline {
                 archiveArtifacts(
                     artifacts: """
                         ${SAST_REPORT},
+                        semgrep-summary.html,
+                        dependency-check-summary.html,
                         ${SCA_REPORT_DIR}/**
                     """,
                     allowEmptyArchive: false,
@@ -402,6 +577,12 @@ pipeline {
 
                         </body>
                         </html>
+                    """,
+                    attachLog: false,
+
+                    attachmentsPattern: """
+                        semgrep-summary.html,
+                        dependency-check-summary.html
                     """
                 )
             }
