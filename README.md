@@ -1,4 +1,4 @@
-# Pipeline DevSecOps — OWASP Juice Shop (Jenkins + GitHub + ngrok)
+# Pipeline DevSecOps OWASP Juice Shop (Jenkins + GitHub + ngrok)
 
 Ce dépôt contient l'infrastructure et le pipeline CI/CD utilisés pour automatiser l'analyse de sécurité (SAST + SCA) de l'application OWASP Juice Shop à chaque modification poussée sur GitHub.
 
@@ -37,7 +37,7 @@ Jenkins tourne entièrement dans un conteneur Docker (isolation des dépendances
 - Une clé API NVD gratuite (recommandée pour accélérer le scan Dependency-Check) : https://nvd.nist.gov/developers/request-an-api-key
 - ngrok installé (ou tout autre tunnel HTTPS) pour exposer Jenkins à GitHub en local
 
-⚠️ **Important — nommage du dossier** : le `Jenkinsfile` référence explicitement le volume Docker `devops-infra-jenkins_jenkins-data` dans sa stage SAST. Ce nom est généré automatiquement par Docker Compose à partir du **nom du dossier contenant `docker-compose-infra.yml`**, préfixé au nom du volume déclaré (`jenkins-data`). Pour que cette référence reste valide telle quelle, le dossier du projet doit donc s'appeler exactement `devops-infra-jenkins` — sinon, adaptez le nom du volume dans le `Jenkinsfile` (stage 2, option `-v`), ou lancez Compose avec `-p devops-infra-jenkins` pour forcer le nom de projet.
+⚠️ **Important: nommage du dossier** : le `Jenkinsfile` référence explicitement le volume Docker `devops-infra-jenkins_jenkins-data` dans sa stage SAST. Ce nom est généré automatiquement par Docker Compose à partir du **nom du dossier contenant `docker-compose-infra.yml`**, préfixé au nom du volume déclaré (`jenkins-data`). Pour que cette référence reste valide telle quelle, le dossier du projet doit donc s'appeler exactement `devops-infra-jenkins` sinon, adaptez le nom du volume dans le `Jenkinsfile` (stage 2, option `-v`), ou lancez Compose avec `-p devops-infra-jenkins` pour forcer le nom de projet.
 
 ## 4. Mise en place de l'infrastructure
 
@@ -112,9 +112,9 @@ Chaque `git push` déclenche alors automatiquement un build Jenkins.
 - **Déclenchement** : automatique à chaque push (webhook), ou manuellement via *Lancer un build* dans Jenkins.
 - **Suivi en direct** : *Jenkins → scan-juice-chop → Console Output* du build en cours.
 - **Rapports générés** (onglet *Last Successful Artifacts* du job) :
-  - `semgrep-report.json` — résultats bruts SAST
-  - `dependency-check-report.html` / `.json` / `.xml` / `.sarif` — résultats SCA sous plusieurs formats
-  - Graphique **Dependency-Check Trend** — évolution du nombre de vulnérabilités par sévérité au fil des builds
+  - `semgrep-report.json` - résultats bruts SAST
+  - `dependency-check-report.html` / `.json` / `.xml` / `.sarif` - résultats SCA sous plusieurs formats
+  - Graphique **Dependency-Check Trend** : évolution du nombre de vulnérabilités par sévérité au fil des builds
 - **Notification** : un e-mail récapitulatif (SAST + SCA) est envoyé automatiquement à la fin de chaque build, avec les rapports en pièce jointe.
 
 ## 7. Détail des fichiers clés
@@ -133,9 +133,9 @@ Construit l'image ci-dessus et démarre le conteneur `jenkins-Container` avec :
 
 ### `Jenkinsfile`
 Définit le pipeline en 3 étapes principales :
-1. **Vérification du code source** — confirme la présence du dossier `juice-shop` dans le workspace ;
-2. **SAST — Semgrep** — lance un conteneur `semgrep/semgrep` éphémère (`--rm`) qui analyse le code et produit `semgrep-report.json` ;
-3. **SCA — OWASP Dependency-Check** — utilise l'outil configuré (`odcInstallation: 'DP-check'`) pour analyser les dépendances npm et générer un rapport multi-format (`--format ALL`) ;
+1. **Vérification du code source**: confirme la présence du dossier `juice-shop` dans le workspace ;
+2. **SAST , Semgrep** : lance un conteneur `semgrep/semgrep` éphémère (`--rm`) qui analyse le code et produit `semgrep-report.json` ;
+3. **SCA , OWASP Dependency-Check** : utilise l'outil configuré (`odcInstallation: 'DP-check'`) pour analyser les dépendances npm et générer un rapport multi-format (`--format ALL`) ;
 
 puis, dans le bloc `post { always { ... } }`, un résumé par sévérité est extrait des deux rapports JSON via `jq`, avant l'envoi d'un e-mail HTML récapitulatif avec les rapports en pièce jointe.
 
