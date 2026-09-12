@@ -10,7 +10,8 @@ RUN apt-get update && apt-get install -y \
     gnupg \
     lsb-release \
     python3 \
-    python3-pip
+    python3-pip \
+    jq
 
 # Installation du binaire Docker Compose
 RUN curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose && \
@@ -24,7 +25,9 @@ RUN jenkins-plugin-cli --plugins \
     workflow-aggregator \
     docker-workflow \
     git \
-    credentials-binding
+    credentials-binding \
+    email-ext \
+    dependency-check-jenkins-plugin
 
 # On repasse en utilisateur jenkins pour la sécurité
 USER jenkins
