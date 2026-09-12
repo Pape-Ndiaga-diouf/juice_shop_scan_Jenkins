@@ -75,10 +75,10 @@ docker compose -f docker-compose-infra.yml up -d --build
 
 ## 5. Configuration Jenkins (après le premier démarrage)
 
-Le `Dockerfile`contient les plugins de base nécessaires au pipeline (`workflow-aggregator`, `docker-workflow`, `git`, `credentials-binding`, `Dependency-Check Plugin`, `emailext`). Les plugins suivants doivent être ajoutés **manuellement** depuis l'interface Jenkins (*Manage Jenkins → Plugins*), car ils ne sont pas déclarés dans le `Dockerfile` :
+Le `Dockerfile`contient les plugins de base nécessaires au pipeline (`workflow-aggregator`, `docker-workflow`, `git`, `credentials-binding`, `Dependency-Check Plugin`, `emailext`).
 
 ### 5.1 Outil OWASP Dependency-Check
-**Attention à un point important** : le plugin Dependency-Check permet d'utiliser dependencyCheck et dependencyCheckPublisher, mais l'installation *DP-check* doit toujours être correctement configurée.
+**Attention à un point important** : le plugin Dependency-Check permet d'utiliser dependencyCheck et dependencyCheckPublisher, mais l'installation *DP-check* doit toujours être correctement configurée, en faisant:
 
 *Manage Jenkins → Tools → Dependency-Check installations* :
 - Nom : `DP-check`
