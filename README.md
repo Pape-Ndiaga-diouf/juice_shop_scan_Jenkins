@@ -75,12 +75,10 @@ docker compose -f docker-compose-infra.yml up -d --build
 
 ## 5. Configuration Jenkins (après le premier démarrage)
 
-Le `Dockerfile` installe uniquement les plugins de base nécessaires au pipeline (`workflow-aggregator`, `docker-workflow`, `git`, `credentials-binding`). Les plugins suivants doivent être ajoutés **manuellement** depuis l'interface Jenkins (*Manage Jenkins → Plugins*), car ils ne sont pas déclarés dans le `Dockerfile` :
-
-- **Email Extension Plugin** (`emailext`) — envoi des rapports par e-mail
-- **OWASP Dependency-Check Plugin** — analyse SCA
+Le `Dockerfile`contient les plugins de base nécessaires au pipeline (`workflow-aggregator`, `docker-workflow`, `git`, `credentials-binding`, `Dependency-Check Plugin`, `emailext`). Les plugins suivants doivent être ajoutés **manuellement** depuis l'interface Jenkins (*Manage Jenkins → Plugins*), car ils ne sont pas déclarés dans le `Dockerfile` :
 
 ### 5.1 Outil OWASP Dependency-Check
+**Attention à un point important** : le plugin Dependency-Check permet d'utiliser dependencyCheck et dependencyCheckPublisher, mais l'installation *DP-check* doit toujours être correctement configurée.
 
 *Manage Jenkins → Tools → Dependency-Check installations* :
 - Nom : `DP-check`
@@ -143,11 +141,6 @@ puis, dans le bloc `post { always { ... } }`, un résumé par sévérité est ex
 
 ## 8. Limites connues / points d'attention
 
-- Le paquet **`jq`** (utilisé pour extraire le résumé par sévérité dans le pipeline) n'est **pas installé** dans le `Dockerfile` actuel. Si l'étape de résumé échoue avec `jq: not found`, ajoutez-le :
-  ```dockerfile
-  RUN apt-get update && apt-get install -y jq
-  ```
-  puis reconstruisez l'image (`docker compose up -d --build`).
 - Sans clé API NVD, le scan Dependency-Check est nettement plus lent (accès à l'API NVD en mode non authentifié, plus limité).
 - Le rapport Dependency-Check mélange les échelles de sévérité NVD (`LOW/MEDIUM/HIGH/CRITICAL`) et GitHub Security Advisories (`low/moderate/high/critical`) : un décompte brut par chaîne de caractères peut donc gonfler artificiellement le total de vulnérabilités si les deux échelles ne sont pas normalisées avant addition.
 
