@@ -1,3 +1,7 @@
+// Plugins Jenkins requis :
+// - Email Extension Plugin (email-ext) : fournit la step emailext
+// - OWASP Dependency-Check Plugin : fournit dependencyCheck et dependencyCheckPublisher
+
 pipeline {
 
     agent any
