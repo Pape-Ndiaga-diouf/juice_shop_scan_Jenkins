@@ -146,4 +146,4 @@ puis, dans le bloc `post { always { ... } }`, un résumé par sévérité est ex
 
 ## 9. Documentation complémentaire
 
-Le fichier **`Rapport_Automatisation_Jenkins_GitHub.pdf`** détaille pas à pas la configuration complète de l'infrastructure (captures d'écran à l'appui) : construction du conteneur Jenkins, intégration GitHub/SCM, automatisation par webhook via ngrok, et mise en place des notifications e-mail..
+Le fichier **`Rapport_Automatisation_Jenkins_GitHub.pdf`** détaille pas à pas la configuration complète de l'infrastructure (captures d'écran à l'appui) : construction du conteneur Jenkins, intégration GitHub/SCM, automatisation par webhook via ngrok, et mise en place des notifications e-mail. ok
